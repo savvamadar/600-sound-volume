@@ -31,7 +31,7 @@ The project is currently hosted on github.com, which is owned by GitHub Inc. (no
 That is all.
 ```
 
-## Actual behavior
+## Actual behavior of the offending addon
 
 * The extension fetches a list of domains where an ad-banner will be inserted
   from `https://ad.resourcefulman.net/banner/ad-locations.txt`
