@@ -65,5 +65,12 @@
         "default": "Ctrl+Shift+6"
       }
     }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
   }
 }
