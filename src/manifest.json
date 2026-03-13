@@ -8,7 +8,7 @@
   "icons": {
     "16": "icons/icon_16.png",
     "20": "icons/icon_20.png",
-    "24": "icons/icon_20.png",
+    "24": "icons/icon_24.png",
     "32": "icons/icon_32.png",
     "48": "icons/icon_48.png",
     "64": "icons/icon_64.png",
@@ -22,7 +22,7 @@
     "default_icon": {
       "16": "icons/icon_16.png",
       "20": "icons/icon_20.png",
-      "24": "icons/icon_20.png",
+      "24": "icons/icon_24.png",
       "32": "icons/icon_32.png",
       "48": "icons/icon_48.png",
       "64": "icons/icon_64.png",
@@ -68,6 +68,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
+      "id": "600-sound-volume@savva",
       "data_collection_permissions": {
         "required": ["none"]
       }

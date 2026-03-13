@@ -2456,8 +2456,9 @@
                             var u = r(i) ? "" : String(i);
                             ii(a, u) && (a.value = u)
                         } else if ("innerHTML" === n && oo(a.tagName) && r(a.innerHTML)) {
-                            ni = ni || document.createElement("div"), ni.innerHTML = "<svg>" + i + "</svg>";
-                            var l = ni.firstChild;
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString("<svg>" + i + "</svg>", "image/svg+xml");
+                            var l = doc.documentElement;
                             while (a.firstChild) a.removeChild(a.firstChild);
                             while (l.firstChild) a.appendChild(l.firstChild)
                         } else if (i !== s[n]) try {
@@ -4468,7 +4469,7 @@
             return this
         }();
         try {
-            n = n || new Function("return this")()
+            n = n || (typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : typeof global !== "undefined" ? global : null)
         } catch (r) {
             "object" === typeof window && (n = window)
         }
@@ -4617,7 +4618,7 @@
             };
             t.exports = n("object" == typeof globalThis && globalThis) || n("object" == typeof window && window) || n("object" == typeof self && self) || n("object" == typeof e && e) || function () {
                 return this
-            }() || Function("return this")()
+            }() || (typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : null)
         }).call(this, n("c8ba"))
     }, ddb0: function (t, e, n) {
         var r = n("da84"), o = n("fdbc"), i = n("e260"), a = n("9112"), s = n("b622"), c = s("iterator"),
