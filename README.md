@@ -7,12 +7,15 @@ the author blatantly lies in their privacy policy) have been removed.
 
 # Download
 
-* [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-privacy/)
-* [Github releases](https://github.com/1fexd/600-sound-volume/releases)
+* [Github](https://github.com/savvamadar/600-sound-volume)
 
 # Details
 
 ## Author's claims 
+
+The original author is 1fexd: [Original](https://github.com/1fexd/600-sound-volume/releases)
+But the addon was in a very broken state so I have taken it upon myself (with the removal of the [offending addon](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/privacy/) proving the original authors claims) to fix it.
+
 
 * [Privacy policy](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/privacy/) ([archived](https://archive.vn/yCuC5))
 
