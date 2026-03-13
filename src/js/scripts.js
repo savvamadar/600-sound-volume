@@ -63,6 +63,8 @@ function changeSoundVolume(doc) {
                 }
             }
             try {
+                target.volume = 1;
+                target.muted = false;
                 target.audiocontext = new AudioContext();
                 target.creategain = target.audiocontext.createGain();
                 target.source = target.audiocontext.createMediaElementSource(target);
@@ -76,6 +78,8 @@ function changeSoundVolume(doc) {
             }
         }
         if (target.creategain) {
+            target.volume = 1;
+            target.muted = false;
             var gainVal = window.localSoundVolume / 100;
             if (gainVal !== target.creategain.gain.value) target.creategain.gain.value = gainVal;
         }
