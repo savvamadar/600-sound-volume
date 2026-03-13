@@ -1,8 +1,5 @@
 # 600% Sound Volume
 
-[600% Sound Volume](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/), but the ads/tracking (about which
-the author blatantly lies in their privacy policy) have been removed.
-
 ![](screenshots/screenshot.jpg)
 
 # Download
@@ -11,9 +8,10 @@ the author blatantly lies in their privacy policy) have been removed.
 
 # Details
 
-## Author's claims 
+## Claims 
 
 The original author is 1fexd: [Original](https://github.com/1fexd/600-sound-volume/releases)
+
 But the addon was in a very broken state so I have taken it upon myself (with the removal of the [offending addon](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/privacy/) proving the original authors claims) to fix it.
 
 
