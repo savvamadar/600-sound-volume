@@ -113,6 +113,14 @@ table {
     width: 100%
 }
 
+.volume-slider__boost-msg {
+    display: block;
+    font-size: 0.85em;
+    color: #c00;
+    margin-top: 0.25em;
+    line-height: 1.3
+}
+
 .volume-info {
     display: -webkit-box;
     display: -ms-flexbox;

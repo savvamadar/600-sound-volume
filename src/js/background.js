@@ -6,6 +6,8 @@ function _browser() {
     }
 }
 
+window.latestVolumes = {};
+
 function setBadgeText(soundVolume) {
     if (100 === soundVolume) {
         _browser().browserAction.setBadgeText({text: null});
@@ -14,80 +16,62 @@ function setBadgeText(soundVolume) {
     }
 }
 
-function updateBadgeText() {
-    sendToActiveTab('getSoundVolume', response => {
-        setBadgeText(response && response.soundVolume >= 0 ? response.soundVolume : 100);
+function normalizeSoundVolume(soundVolume) {
+    var n = Number(soundVolume);
+    return Number.isFinite(n) && n >= 0 ? n : 100;
+}
+
+function getLatestVolumeForTab(tabId) {
+    if (tabId === null || tabId === undefined) return 100;
+    if (window.latestVolumes[tabId] === undefined) return 100;
+    return normalizeSoundVolume(window.latestVolumes[tabId]);
+}
+
+function setLatestVolumeForTab(tabId, soundVolume) {
+    if (tabId === null || tabId === undefined) return 100;
+    var n = normalizeSoundVolume(soundVolume);
+    window.latestVolumes[tabId] = n;
+    return n;
+}
+
+function withActiveTabId(cb) {
+    _browser().tabs.query({'currentWindow': true, 'active': true}, function(tabs) {
+        if (tabs && tabs.length > 0 && tabs[0] && tabs[0].id !== undefined) {
+            cb(tabs[0].id);
+        } else {
+            cb(null);
+        }
     });
 }
 
-function sendToActiveTab(action, onResponse) {
-    _browser().tabs.query({'currentWindow': true, 'active': true},
-        tabs => {
-            try{
-                if (tabs.length > 0) {
-                    _browser().tabs.sendMessage(tabs[0].id, {'action': action},
-                        response => {
-                            window.lastError = _browser().runtime.lastError;
-                            if (onResponse) {
-                                onResponse(response);
-                            }
-                        });
-                } else {
-                    onResponse(null);
-                }
-            } catch (e) {
-            }
-        });
+function updateBadgeText() {
+    withActiveTabId(function(tabId) {
+        setBadgeText(getLatestVolumeForTab(tabId));
+    });
 }
 
-window.audioStates = [];
-_browser().runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (sendResponse && !sendResponse) {
-        console.warn(sendResponse);
-    }
-    if (request.action === 'changeSoundVolume') {
-        // setBadgeText(request.data.soundVolume);
-        if (_browser().tabCapture) {
-            let audioState = window.audioStates[sender.tab.id];
-            if (!audioState) {
-                _browser().tabCapture.capture({
-                    audio: true,
-                    video: false
-                }, stream => {
-                    //const err = _browser().runtime.lastError;
-                    if (!stream) {
-                        // setBadgeText(100);
-                        return;
-                    }
-                    audioState = {};
-                    audioState.audiocontext = new AudioContext();
-                    audioState.creategain = audioState.audiocontext.createGain();
-                    audioState.source = audioState.audiocontext.createMediaStreamSource(stream);
-                    audioState.source.connect(audioState.creategain);
-                    audioState.creategain.connect(audioState.audiocontext.destination);
-                    window.audioStates[sender.tab.id] = audioState;
-                    if (request.data.soundVolume !== undefined) {
-                        audioState.creategain.gain.value = request.data.soundVolume / 100;
-                    }
-                });
-            } else {
-                if (request.data.soundVolume !== undefined) {
-                    audioState.creategain.gain.value = request.data.soundVolume / 100;
-                }
-            }
-        } else {
-            // setBadgeText(request.data.soundVolume);
+_browser().runtime.onMessage.addListener(function(request, sender, sendResponse) {
+    if (request.action === 'getVolumeForTab') {
+        var tabId = request.data && request.data.tabId;
+        sendResponse({soundVolume: getLatestVolumeForTab(tabId)});
+    } else if (request.action === 'setVolumeForTab') {
+        var tabId = request.data && request.data.tabId;
+        var vol = request.data && request.data.soundVolume;
+        setLatestVolumeForTab(tabId, vol);
+        withActiveTabId(function(activeId) {
+            if (activeId === tabId) setBadgeText(getLatestVolumeForTab(tabId));
+        });
+        if (tabId != null && _browser().tabs && _browser().tabs.executeScript) {
+            var clamped = Math.max(0, Math.min(600, Number(vol)));
+            var code = 'document.dispatchEvent(new CustomEvent("sv-volume-set",{detail:{volume:' + clamped + '}}))';
+            _browser().tabs.executeScript(tabId, { code: code, allFrames: true }).catch(function(){});
         }
+        sendResponse({});
     }
 });
 
-_browser().tabs.onRemoved.addListener(tabId => {
-    const audioState = audioStates[tabId];
-    if (audioState) {
-        audioState.audiocontext.close().then(() => {
-            delete audioStates[tabId];
-        });
-    }
+_browser().tabs.onRemoved.addListener(function(tabId) {
+    delete window.latestVolumes[tabId];
 });
 
 setInterval(updateBadgeText, 500);
