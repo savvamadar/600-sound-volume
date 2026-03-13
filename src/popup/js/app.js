@@ -126,7 +126,7 @@
                     })]), n("div", {staticClass: "tab__item tab__title"}, [t._v(t._s(e.title))])])])
                 }))], 2), n("footer", {staticStyle: {width: "100%"}}, [n("span", {staticStyle: {float: "left"}}, [n("a", {
                     attrs: {
-                        href: "https://addons.mozilla.org/firefox/addon/600-sound-volume/",
+                        href: "https://github.com/savvamadar/600-sound-volume/",
                         target: "_blank"
                     }
                 })])])])
@@ -187,12 +187,6 @@
                     title: p.t("right_after_opening_title"),
                     message: p.t("right_after_opening_message"),
                     minUsages: 7
-                }, {
-                    id: "tk7tse8yedvsdyve2dtpzd349hkbnugk",
-                    priority: 250,
-                    title: p.t("volume_up_down_title"),
-                    message: p.t("volume_up_down_message"),
-                    minUsages: 12
                 }]
             },
             methods: {
@@ -396,9 +390,37 @@
         });
         b.$mount("#app");
     }, 7704: function (t) {
-        t.exports = JSON.parse('{"headerTitle":"Громкость Звука 600%","headerDescription":"Регулируйте громкость звука текущей вкладки ползунком. Переключайтесь на любую вкладку со звуком одним кликом.","volumeLabel":"Громкость:","tabsLabel":"Вкладки со звуком","noTabsLabel":"Вкладок со звуком нет","rateItLabel":"Оценить!","boostBlockedLabel":"Аудио на этой странице из другого источника. Усиление выше 100% недоступно. Используйте 0–100% для регулировки громкости.","if_you_like_title":"","if_you_like_message":"Если нравится \\"Громкость звука 600%\\", пожалуйста, оцените это расширение здесь <a href=\\"https://addons.mozilla.org/firefox/addon/600-sound-volume/\\" target=\\"_blank\\" tabindex=\\"-1\\">Firefox Browser Add-ons</a>. Спасибо за ваш отзыв и хорошего дня!","ctrl_shift_v_title":"Совет: Сочетание клавиш","ctrl_shift_v_message":"<strong>Ctrl+Shift+6</strong> - сочетание клавиш для открытия \\"600% Sound Volume\\".","right_after_opening_title":"Совет: используйте клавиши 0 - 6 для регулировки громкости","right_after_opening_message":"Сразу после открытия \\"Громкость звука 600%\\" нажимайте клавиши 0&nbsp;-&nbsp;6 , чтобы изменить громкость с 0&nbsp;% до 600&nbsp;% соответственно.","volume_up_down_title":"Совет: Регулируйте громкость с помощью клавиш со стрелками","volume_up_down_message":"Сразу после открытия \\"Громкость звука 600%\\" нажимайте:<ul><li>&#x2b06;&#xfe0f; или &#x27a1;&#xfe0f; для увеличения громкости</li><li>&#x2b07;&#xfe0f; или &#x2b05;&#xfe0f; для уменьшения громкости</li></ul>","buy_headsets":"Или купить наушники","buy_headphone_amplifier":"Купить усилитель наушников"}')
+        t.exports = JSON.parse(`{
+            "headerTitle": "600% Громкость звука",
+            "headerDescription": "Регулируйте громкость звука текущей вкладки ползунком. Переключайтесь на любую вкладку со звуком одним кликом.",
+            "volumeLabel": "Громкость:",
+            "tabsLabel": "Вкладки со звуком",
+            "noTabsLabel": "Вкладок со звуком нет",
+            "rateItLabel": "Оценить!",
+            "boostBlockedLabel": "Аудио на этой странице из другого источника. Усиление выше 100% недоступно. Используйте 0–100% для регулировки громкости.",
+            "if_you_like_title": "",
+            "if_you_like_message": "Если нравится расширение — будем благодарны за оценку в 5 звёзд!",
+            "ctrl_shift_v_title": "Совет: Сочетание клавиш",
+            "ctrl_shift_v_message": "<strong>Ctrl+Shift+6</strong> - сочетание клавиш для открытия \\"600% Громкость звука\\".",
+            "right_after_opening_title": "Совет: используйте клавиши 0 - 6 для регулировки громкости",
+            "right_after_opening_message": "Сразу после открытия \\"600% Громкость звука\\" нажимайте клавиши 0&nbsp;-&nbsp;6 , чтобы изменить громкость с 0&nbsp;% до 600&nbsp;% соответственно."
+        }`);
     }, edd4: function (t) {
-        t.exports = JSON.parse('{"headerTitle":"600% Sound Volume","headerDescription":"Control volume of the current tab with the slider below. Switch to any tab playing audio with just one click.","volumeLabel":"Volume:","tabsLabel":"Tabs playing audio right now","noTabsLabel":"No tabs playing audio right now","rateItLabel":"Rate It!","boostBlockedLabel":"This page has cross-origin audio. Volume boost above 100% is not available. Use 0-100% to control volume.","if_you_like_title":"","if_you_like_message":"If you like \\"600% Sound Volume\\" please rate it on <a href=\\"https://addons.mozilla.org/firefox/addon/600-sound-volume/\\" target=\\"_blank\\" tabindex=\\"-1\\">Firefox Browser Add-ons</a> to let me know that. If you don\'t want to - it\'s ok. Thank you for your feedback and have a nice day!","ctrl_shift_v_title":"Tip: keyboard shortcut","ctrl_shift_v_message":"<strong>Ctrl+Shift+6</strong> is a shortcut to open \\"600% Sound Volume\\".","right_after_opening_title":"Tip: use keys 0 - 6 to adjust volume","right_after_opening_message":"Right after opening \\"600% Sound Volume\\" press keys 0&nbsp;-&nbsp;6 to change volume from 0&nbsp;% to 600&nbsp;% respectively.","volume_up_down_title":"Tip: adjust volume with arrow keys","volume_up_down_message":"Right after opening \\"600% Sound Volume\\" press:<ul><li>&#x2b06;&#xfe0f; or &#x27a1;&#xfe0f; to volume up</li><li>&#x2b07;&#xfe0f; or &#x2b05;&#xfe0f; to volume down</li></ul>","buy_headsets":"Or Buy Headsets","buy_headphone_amplifier":"Buy Headphone Amplifier"}')
+        t.exports = JSON.parse(`{
+            "headerTitle": "600% Sound Volume",
+            "headerDescription": "Control volume of the current tab with the slider below. Switch to any tab playing audio with just one click.",
+            "volumeLabel": "Volume:",
+            "tabsLabel": "Tabs playing audio right now",
+            "noTabsLabel": "No tabs playing audio right now",
+            "rateItLabel": "Rate It!",
+            "boostBlockedLabel": "This page has cross-origin audio. Volume boost above 100% is not available. Use 0-100% to control volume.",
+            "if_you_like_title": "",
+            "if_you_like_message": "If you like the addon we'd appreciate a 5 star rating!",
+            "ctrl_shift_v_title": "Tip: keyboard shortcut",
+            "ctrl_shift_v_message": "<strong>Ctrl+Shift+6</strong> is a shortcut to open \\"600% Sound Volume\\".",
+            "right_after_opening_title": "Tip: use keys 0 - 6 to adjust volume",
+            "right_after_opening_message": "Right after opening \\"600% Sound Volume\\" press keys 0&nbsp;-&nbsp;6 to change volume from 0&nbsp;% to 600&nbsp;% respectively."
+        }`);
     }
 });
 //# sourceMappingURL=app.js.map
