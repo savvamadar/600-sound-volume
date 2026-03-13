@@ -2990,7 +2990,7 @@
             var e = [], n = 1;
             while (arguments.length > n) e.push(arguments[n++]);
             return b[++_] = function () {
-                ("function" == typeof t ? t : Function(t)).apply(void 0, e)
+                ("function" == typeof t ? t : function () { throw new Error("String callbacks not supported"); }).apply(void 0, e)
             }, r(_), _
         }, h = function (t) {
             delete b[t]
