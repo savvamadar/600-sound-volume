@@ -68,7 +68,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "600-sound-volume@savva",
+      "id": "600-sound-volume@savvamadar",
       "data_collection_permissions": {
         "required": ["none"]
       }
