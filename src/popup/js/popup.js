@@ -13,6 +13,10 @@
             noTabsLabel: "No tabs playing audio right now",
             boostBlockedLabel: "This page has cross-origin audio. Volume boost above 100% is not available. Use 0-100% to control volume.",
             if_you_like_message: "If you like the addon we'd appreciate a 5 star rating!",
+            if_you_like_before: "If you like the addon we'd appreciate a ",
+            if_you_like_link_text: "5 star rating",
+            if_you_like_after: "!",
+            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
             ctrl_shift_v_title: "Tip: keyboard shortcut",
             ctrl_shift_v_message: "Ctrl+Shift+6 is a shortcut to open \"600% Sound Volume\".",
             right_after_opening_title: "Tip: use keys 0 - 6 to adjust volume",
@@ -26,6 +30,10 @@
             noTabsLabel: "Вкладок со звуком нет",
             boostBlockedLabel: "Аудио на этой странице из другого источника. Усиление выше 100% недоступно. Используйте 0–100% для регулировки громкости.",
             if_you_like_message: "Если нравится расширение — будем благодарны за оценку в 5 звёзд!",
+            if_you_like_before: "Если нравится расширение — будем благодарны за оценку в ",
+            if_you_like_link_text: "5 звёзд",
+            if_you_like_after: "!",
+            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
             ctrl_shift_v_title: "Совет: Сочетание клавиш",
             ctrl_shift_v_message: "Ctrl+Shift+6 - сочетание клавиш для открытия \"600% Громкость звука\".",
             right_after_opening_title: "Совет: используйте клавиши 0 - 6 для регулировки громкости",
@@ -174,6 +182,20 @@
                 return;
             }
             tabs = Array.isArray(tabs) ? tabs : [];
+            if (tabs.length === 0 && state.audibleTabs.length > 0) {
+                setTimeout(function () {
+                    api.tabs.query({ audible: true, currentWindow: true }, function (retryTabs) {
+                        if (api.runtime.lastError) return;
+                        retryTabs = Array.isArray(retryTabs) ? retryTabs : [];
+                        retryTabs.sort(function (a, b) {
+                            return (a.title && b.title) ? a.title.localeCompare(b.title) : 0;
+                        });
+                        state.audibleTabs = retryTabs;
+                        renderTabs();
+                    });
+                }, 150);
+                return;
+            }
             tabs.sort(function (a, b) {
                 return (a.title && b.title) ? a.title.localeCompare(b.title) : 0;
             });
@@ -281,7 +303,20 @@
             var msgEl = document.getElementById("notification-message");
             if (notif && msgEl) {
                 titleEl.textContent = notif.title ? t(notif.title) : "";
-                msgEl.textContent = typeof notif.message === "string" && notif.message in messages.en ? t(notif.message) : notif.message;
+                if (notif.message === "if_you_like_message") {
+                    msgEl.textContent = "";
+                    msgEl.appendChild(document.createTextNode(t("if_you_like_before")));
+                    var link = document.createElement("a");
+                    link.href = t("if_you_like_link_url");
+                    link.target = "_blank";
+                    link.rel = "noopener";
+                    link.textContent = t("if_you_like_link_text");
+                    link.className = "link link--external";
+                    msgEl.appendChild(link);
+                    msgEl.appendChild(document.createTextNode(t("if_you_like_after")));
+                } else {
+                    msgEl.textContent = typeof notif.message === "string" && notif.message in messages.en ? t(notif.message) : notif.message;
+                }
                 notifEl.classList.add("is-active");
                 notifEl.dataset.notificationId = notif.id;
             }

@@ -49,6 +49,14 @@ function changeSoundVolume(doc) {
             continue;
         }
 
+        if (window.localSoundVolume <= 100) {
+            var nativeVol = window.localSoundVolume / 100;
+            target.volume = Math.min(1, nativeVol);
+            target.muted = (nativeVol === 0);
+            if (target.creategain) target.creategain.gain.value = 1;
+            continue;
+        }
+
         if (!target.audiocontext) {
             if (target.crossOrigin !== 'anonymous') {
                 target.setAttribute('crossorigin', 'anonymous');
@@ -65,11 +73,14 @@ function changeSoundVolume(doc) {
             try {
                 target.volume = 1;
                 target.muted = false;
-                target.audiocontext = new AudioContext();
+                target.audiocontext = new (window.AudioContext || window.webkitAudioContext)();
                 target.creategain = target.audiocontext.createGain();
                 target.source = target.audiocontext.createMediaElementSource(target);
                 target.source.connect(target.creategain);
                 target.creategain.connect(target.audiocontext.destination);
+                if (target.audiocontext.state === 'suspended') {
+                    target.audiocontext.resume();
+                }
             } catch (e) {
                 var vol = Math.min(1, window.localSoundVolume / 100);
                 if (target.volume !== vol) target.volume = vol;
@@ -77,12 +88,12 @@ function changeSoundVolume(doc) {
                 continue;
             }
         }
-        if (target.creategain) {
-            target.volume = 1;
-            target.muted = false;
-            var gainVal = window.localSoundVolume / 100;
-            if (gainVal !== target.creategain.gain.value) target.creategain.gain.value = gainVal;
+        target.volume = 1;
+        target.muted = false;
+        if (target.audiocontext && target.audiocontext.state === 'suspended') {
+            target.audiocontext.resume();
         }
+        target.creategain.gain.value = window.localSoundVolume / 100;
     }
 }
 

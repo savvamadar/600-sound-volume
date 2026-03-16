@@ -4,6 +4,7 @@
 
 # Download
 
+* [Release](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/)
 * [Github](https://github.com/savvamadar/600-sound-volume)
 
 # Details
@@ -15,7 +16,7 @@ The original author is 1fexd: [Original](https://github.com/1fexd/600-sound-volu
 But the addon was in a very broken state so I have taken it upon myself (with the removal of the [offending addon](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/privacy/) proving the original authors claims) to fix it.
 
 
-* [Privacy policy](https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume/privacy/) ([archived](https://archive.vn/yCuC5))
+* [Privacy policy (archived)](https://archive.vn/yCuC5)
 
 ```
 "600% Sound Volume" does not collect any data of any kind.
