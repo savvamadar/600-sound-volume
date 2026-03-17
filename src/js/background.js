@@ -54,6 +54,16 @@ _browser().runtime.onMessage.addListener(function(request, sender, sendResponse)
     if (request.action === 'getVolumeForTab') {
         var tabId = request.data && request.data.tabId;
         sendResponse({soundVolume: getLatestVolumeForTab(tabId)});
+    } else if (request.action === 'reportPageVolume') {
+        var tabId = sender && sender.tab && sender.tab.id;
+        var vol = request.data && request.data.soundVolume;
+        if (tabId != null && vol !== undefined) {
+            setLatestVolumeForTab(tabId, vol);
+            withActiveTabId(function(activeId) {
+                if (activeId === tabId) setBadgeText(getLatestVolumeForTab(tabId));
+            });
+        }
+        sendResponse({});
     } else if (request.action === 'setVolumeForTab') {
         var tabId = request.data && request.data.tabId;
         var vol = request.data && request.data.soundVolume;

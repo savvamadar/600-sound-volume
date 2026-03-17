@@ -402,15 +402,22 @@
         });
 
         document.getElementById("btn-mute").onclick = function () {
-            var slider = document.getElementById("volume-slider");
             if (slider) {
                 slider.value = 0;
                 slider.dispatchEvent(new Event("input", { bubbles: true }));
             }
         };
+        document.getElementById("btn-40").onclick = function () {
+            if (slider) {
+                slider.value = 40;
+                slider.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+        };
         document.getElementById("btn-100").onclick = function () {
-            setSoundVolume(100);
-            sendToActiveTab("changeSoundVolume");
+            if (slider) {
+                slider.value = 100;
+                slider.dispatchEvent(new Event("input", { bubbles: true }));
+            }
         };
         document.getElementById("notification-close").onclick = closeNotification;
 

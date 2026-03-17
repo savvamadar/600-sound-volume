@@ -1,5 +1,6 @@
 window.prevSoundVolume = null;
 window.localSoundVolume = 100;
+window._svUserHasSetVolume = false;
 
 const HOSTS_TO_IGNORE = [];
 
@@ -35,8 +36,26 @@ function isCrossOriginNoCors(el) {
     return mediaOrigin && mediaOrigin !== pageOrigin && el.crossOrigin !== 'anonymous';
 }
 
+function adoptPageVolume(mediaElements) {
+    if (mediaElements.length === 0) return;
+    var first = mediaElements[0];
+    var src = first.src || first.currentSrc;
+    if (!src || hostToIgnore(src)) return;
+    if (isCrossOriginNoCors(first)) return;
+    var vol = first.muted ? 0 : Math.round(first.volume * 100);
+    vol = Math.max(0, Math.min(100, vol));
+    window.localSoundVolume = vol;
+    if (window === window.top) {
+        _browser().runtime.sendMessage({ action: "reportPageVolume", data: { soundVolume: vol } });
+    }
+}
+
 function changeSoundVolume(doc) {
     var media = doc.querySelectorAll('video, audio');
+    if (!window._svUserHasSetVolume && media.length > 0) {
+        adoptPageVolume(media);
+        return;
+    }
     for (var i = 0; i < media.length; i++) {
         var target = media[i];
         var src = target.src || target.currentSrc;
@@ -130,6 +149,7 @@ function checkBoostAvailability() {
 
 _browser().runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'changeSoundVolume') {
+        window._svUserHasSetVolume = true;
         if (request.data && request.data.soundVolume !== undefined) {
             applyVolume(request.data.soundVolume);
         }
@@ -142,8 +162,24 @@ _browser().runtime.onMessage.addListener(function(request, sender, sendResponse)
 });
 
 document.addEventListener('sv-volume-set', function(e) {
-    if (e.detail && e.detail.volume !== undefined) applyVolume(e.detail.volume);
+    if (e.detail && e.detail.volume !== undefined) {
+        window._svUserHasSetVolume = true;
+        applyVolume(e.detail.volume);
+    }
 });
+
+function onPageVolumeChange(el) {
+    if (window._svUserHasSetVolume) return;
+    var src = el.src || el.currentSrc;
+    if (!src || hostToIgnore(src)) return;
+    if (isCrossOriginNoCors(el)) return;
+    var vol = el.muted ? 0 : Math.round(el.volume * 100);
+    vol = Math.max(0, Math.min(100, vol));
+    window.localSoundVolume = vol;
+    if (window === window.top) {
+        _browser().runtime.sendMessage({ action: "reportPageVolume", data: { soundVolume: vol } });
+    }
+}
 
 function observeMedia(doc) {
     var media = doc.querySelectorAll('video, audio');
@@ -154,6 +190,7 @@ function observeMedia(doc) {
         el.__svObserved = true;
         hadNew = true;
         el.addEventListener('play', scheduleApply);
+        el.addEventListener('volumechange', function() { onPageVolumeChange(this); });
     }
     return hadNew;
 }
