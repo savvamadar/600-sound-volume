@@ -9,7 +9,10 @@
 <body>
 <noscript><strong>We're sorry but popup doesn't work properly without JavaScript enabled. Please enable it to continue.</strong></noscript>
 <header class="header">
-    <h1 class="header__name" id="header-title">600% Sound Volume</h1>
+    <div class="header__topbar">
+        <h1 class="header__name" id="header-title">600% Sound Volume</h1>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-pressed="false">Dark mode: Off</button>
+    </div>
     <p class="header__description" id="header-description">Control volume of the current tab with the slider below. Switch to any tab playing audio with just one click.</p>
 </header>
 <section class="notification" id="notification">
@@ -33,9 +36,9 @@
     <div class="tabs__title" id="tabs-title">Tabs playing audio right now</div>
     <div id="tabs-list"></div>
 </section>
-<footer style="width:100%">
-    <span style="float:left"><a href="https://github.com/savvamadar/600-sound-volume/" target="_blank" rel="noopener">GitHub</a></span>
-    <span style="float:right"><a href="https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/" target="_blank" rel="noopener">Rate Addon</a></span>
+<footer class="footer">
+    <a class="footer__link" href="https://github.com/savvamadar/600-sound-volume/" target="_blank" rel="noopener">GitHub</a>
+    <a class="footer__link" href="https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/" target="_blank" rel="noopener">Rate Addon</a>
 </footer>
 <script src="js/popup.js"></script>
 </body>

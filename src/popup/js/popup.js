@@ -47,6 +47,7 @@
 
     var state = {
         soundVolume: 100,
+        darkMode: false,
         audibleTabs: [],
         boostBlocked: false,
         refreshTimerId: null,
@@ -61,6 +62,35 @@
         { id: "cvifms5exdmqy2g3ar4kzhmxi4zepvvq", priority: 750, title: "ctrl_shift_v_title", message: "ctrl_shift_v_message", minUsages: 3 },
         { id: "h6s5u6eqgjpxwqasujret4vz2pnkj945", priority: 500, title: "right_after_opening_title", message: "right_after_opening_message", minUsages: 7 }
     ];
+
+    function setDarkMode(enabled) {
+        state.darkMode = !!enabled;
+        document.body.classList.toggle("theme-dark", state.darkMode);
+        var button = document.getElementById("theme-toggle");
+        if (!button) return;
+        button.textContent = state.darkMode ? "Dark mode: On" : "Dark mode: Off";
+        button.setAttribute("aria-pressed", state.darkMode ? "true" : "false");
+        button.classList.toggle("is-active", state.darkMode);
+    }
+
+    function loadDarkModePreference(done) {
+        api.storage.local.get({ darkMode: false }, function (data) {
+            if (api.runtime.lastError) {
+                console.warn(api.runtime.lastError);
+                setDarkMode(false);
+                if (done) done();
+                return;
+            }
+            setDarkMode(!!data.darkMode);
+            if (done) done();
+        });
+    }
+
+    function persistDarkModePreference() {
+        api.storage.local.set({ darkMode: state.darkMode }, function () {
+            if (api.runtime.lastError) console.warn(api.runtime.lastError);
+        });
+    }
 
     function setSoundVolume(val) {
         state.soundVolume = val;
@@ -381,6 +411,7 @@
         document.getElementById("header-title").textContent = t("headerTitle");
         document.getElementById("header-description").textContent = t("headerDescription");
         setSoundVolume(state.soundVolume);
+        setDarkMode(false);
 
         var slider = document.getElementById("volume-slider");
         slider.addEventListener("input", function () {
@@ -414,6 +445,10 @@
                 slider.dispatchEvent(new Event("input", { bubbles: true }));
             }
         };
+        document.getElementById("theme-toggle").onclick = function () {
+            setDarkMode(!state.darkMode);
+            persistDarkModePreference();
+        };
         document.getElementById("notification-close").onclick = closeNotification;
 
         document.addEventListener("keypress", function (e) {
@@ -427,10 +462,12 @@
             sendToActiveTab("changeSoundVolume");
         });
 
-        refreshPopupState();
-        bindListeners();
-        initNotification();
-        if (slider) slider.focus();
+        loadDarkModePreference(function () {
+            refreshPopupState();
+            bindListeners();
+            initNotification();
+            if (slider) slider.focus();
+        });
     }
 
     window.addEventListener("unload", unbindListeners);
