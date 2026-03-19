@@ -53,6 +53,9 @@ function updateBadgeText() {
 _browser().runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'getVolumeForTab') {
         var tabId = request.data && request.data.tabId;
+        if (tabId == null && sender && sender.tab && sender.tab.id != null) {
+            tabId = sender.tab.id;
+        }
         sendResponse({soundVolume: getLatestVolumeForTab(tabId)});
     } else if (request.action === 'reportPageVolume') {
         var tabId = sender && sender.tab && sender.tab.id;
