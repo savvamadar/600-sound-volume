@@ -358,3 +358,7 @@ body.theme-dark {
     --notification-bg: #20344c;
     --notification-border: #34506f
 }
+
+body.theme-dark #btn-mute > img {
+    filter: brightness(200%)
+}

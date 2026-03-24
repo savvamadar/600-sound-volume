@@ -269,11 +269,25 @@
         });
     }
 
+    function audibleTabsSignature(tabs) {
+        if (!tabs || !tabs.length) return "";
+        return JSON.stringify(tabs.map(function (tab) {
+            return { id: tab.id, title: tab.title || "", favIconUrl: tab.favIconUrl || "" };
+        }));
+    }
+
     function renderTabs() {
         var list = document.getElementById("tabs-list");
         var title = document.getElementById("tabs-title");
         if (!list || !title) return;
-        title.textContent = state.audibleTabs.length ? t("tabsLabel") : t("noTabsLabel");
+        var titleText = state.audibleTabs.length ? t("tabsLabel") : t("noTabsLabel");
+        var sig = audibleTabsSignature(state.audibleTabs);
+        if (sig === state._audibleTabsDomSignature) {
+            if (title.textContent !== titleText) title.textContent = titleText;
+            return;
+        }
+        state._audibleTabsDomSignature = sig;
+        title.textContent = titleText;
         while (list.firstChild) list.removeChild(list.firstChild);
         state.audibleTabs.forEach(function (tab) {
             var a = document.createElement("a");
