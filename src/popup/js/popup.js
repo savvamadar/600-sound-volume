@@ -47,6 +47,7 @@
 
     var state = {
         soundVolume: 100,
+        savedVolumePreset: 100,
         darkMode: false,
         audibleTabs: [],
         boostBlocked: false,
@@ -73,15 +74,35 @@
         button.classList.toggle("is-active", state.darkMode);
     }
 
-    function loadDarkModePreference(done) {
-        api.storage.local.get({ darkMode: false }, function (data) {
+    function updateSavedPresetButton() {
+        var btn = document.getElementById("btn-saved-preset");
+        if (btn) btn.textContent = state.savedVolumePreset + " %";
+    }
+
+    function persistSavedVolumePreset(val) {
+        var n = Math.max(0, Math.min(600, Number(val)));
+        if (!Number.isFinite(n)) return;
+        state.savedVolumePreset = n;
+        updateSavedPresetButton();
+        api.storage.local.set({ savedVolumePreset: n }, function () {
+            if (api.runtime.lastError) console.warn(api.runtime.lastError);
+        });
+    }
+
+    function loadPreferences(done) {
+        api.storage.local.get({ darkMode: false, savedVolumePreset: 100 }, function (data) {
             if (api.runtime.lastError) {
                 console.warn(api.runtime.lastError);
                 setDarkMode(false);
+                state.savedVolumePreset = 100;
+                updateSavedPresetButton();
                 if (done) done();
                 return;
             }
             setDarkMode(!!data.darkMode);
+            var preset = Number(data.savedVolumePreset);
+            state.savedVolumePreset = Number.isFinite(preset) ? Math.max(0, Math.min(600, preset)) : 100;
+            updateSavedPresetButton();
             if (done) done();
         });
     }
@@ -432,12 +453,14 @@
             var val = Math.max(0, Math.min(600, Number(slider.value)));
             if (state.boostBlocked && val > 100) val = 100;
             setSoundVolume(val);
+            persistSavedVolumePreset(val);
             sendToActiveTab("changeSoundVolume");
         });
         slider.addEventListener("change", function () {
             var val = Math.max(0, Math.min(600, Number(slider.value)));
             if (state.boostBlocked && val > 100) val = 100;
             setSoundVolume(val);
+            persistSavedVolumePreset(val);
             sendToActiveTab("changeSoundVolume");
         });
 
@@ -447,11 +470,12 @@
                 slider.dispatchEvent(new Event("input", { bubbles: true }));
             }
         };
-        document.getElementById("btn-40").onclick = function () {
-            if (slider) {
-                slider.value = 40;
-                slider.dispatchEvent(new Event("input", { bubbles: true }));
-            }
+        document.getElementById("btn-saved-preset").onclick = function () {
+            if (!slider) return;
+            var val = state.savedVolumePreset;
+            if (state.boostBlocked && val > 100) val = 100;
+            slider.value = val;
+            slider.dispatchEvent(new Event("input", { bubbles: true }));
         };
         document.getElementById("btn-100").onclick = function () {
             if (slider) {
@@ -468,15 +492,18 @@
         document.addEventListener("keypress", function (e) {
             var n = parseInt(e.key, 10);
             if (isNaN(n) || n < 0 || n > 6) return;
+            var val;
             if (state.boostBlocked) {
-                setSoundVolume(n > 1 ? 100 : 100 * n);
+                val = n > 1 ? 100 : 100 * n;
             } else {
-                setSoundVolume(100 * n);
+                val = 100 * n;
             }
+            setSoundVolume(val);
+            persistSavedVolumePreset(val);
             sendToActiveTab("changeSoundVolume");
         });
 
-        loadDarkModePreference(function () {
+        loadPreferences(function () {
             refreshPopupState();
             bindListeners();
             initNotification();
