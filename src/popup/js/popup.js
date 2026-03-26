@@ -1,6 +1,8 @@
 (function () {
     "use strict";
 
+    var MAX_VOLUME_PERCENT = 1000;
+
     var api = typeof browser !== "undefined" ? browser : chrome;
     var locale = navigator.language && navigator.language.startsWith("ru") ? "ru" : "en";
 
@@ -19,8 +21,8 @@
             if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
             ctrl_shift_v_title: "Tip: keyboard shortcut",
             ctrl_shift_v_message: "Ctrl+Shift+6 is a shortcut to open \"600% Sound Volume\".",
-            right_after_opening_title: "Tip: use keys 0 - 6 to adjust volume",
-            right_after_opening_message: "Right after opening \"600% Sound Volume\" press keys 0 - 6 to change volume from 0 % to 600 % respectively."
+            right_after_opening_title: "Tip: use keys 0 - 9 to adjust volume",
+            right_after_opening_message: "Right after opening \"600% Sound Volume\" press keys 0 - 9 to set 0%, 100%, …, 900%."
         },
         ru: {
             headerTitle: "600% Громкость звука",
@@ -36,8 +38,8 @@
             if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
             ctrl_shift_v_title: "Совет: Сочетание клавиш",
             ctrl_shift_v_message: "Ctrl+Shift+6 - сочетание клавиш для открытия \"600% Громкость звука\".",
-            right_after_opening_title: "Совет: используйте клавиши 0 - 6 для регулировки громкости",
-            right_after_opening_message: "Сразу после открытия \"600% Громкость звука\" нажимайте клавиши 0 - 6, чтобы изменить громкость с 0 % до 600 % соответственно."
+            right_after_opening_title: "Совет: используйте клавиши 0 - 9 для регулировки громкости",
+            right_after_opening_message: "Сразу после открытия \"600% Громкость звука\" нажимайте клавиши 0 - 9 для 0%, 100%, …, 900%."
         }
     };
 
@@ -76,11 +78,11 @@
 
     function updateSavedPresetButton() {
         var btn = document.getElementById("btn-saved-preset");
-        if (btn) btn.textContent = state.savedVolumePreset + " %";
+        if (btn) btn.textContent = "🔄" + state.savedVolumePreset + "%";
     }
 
     function persistSavedVolumePreset(val) {
-        var n = Math.max(0, Math.min(600, Number(val)));
+        var n = Math.max(0, Math.min(MAX_VOLUME_PERCENT, Number(val)));
         if (!Number.isFinite(n)) return;
         state.savedVolumePreset = n;
         updateSavedPresetButton();
@@ -101,7 +103,7 @@
             }
             setDarkMode(!!data.darkMode);
             var preset = Number(data.savedVolumePreset);
-            state.savedVolumePreset = Number.isFinite(preset) ? Math.max(0, Math.min(600, preset)) : 100;
+            state.savedVolumePreset = Number.isFinite(preset) ? Math.max(0, Math.min(MAX_VOLUME_PERCENT, preset)) : 100;
             updateSavedPresetButton();
             if (done) done();
         });
@@ -119,6 +121,14 @@
         if (slider) slider.value = val;
         var cur = document.getElementById("volume-current");
         if (cur) cur.textContent = t("volumeLabel") + " " + val + " %";
+    }
+
+    function applyVolumeFromControls(val, persistPreset) {
+        val = Math.max(0, Math.min(MAX_VOLUME_PERCENT, Number(val)));
+        if (state.boostBlocked && val > 100) val = 100;
+        setSoundVolume(val);
+        if (persistPreset) persistSavedVolumePreset(val);
+        sendToActiveTab("changeSoundVolume");
     }
 
     function setTabMutedState(tabId, vol) {
@@ -450,38 +460,20 @@
 
         var slider = document.getElementById("volume-slider");
         slider.addEventListener("input", function () {
-            var val = Math.max(0, Math.min(600, Number(slider.value)));
-            if (state.boostBlocked && val > 100) val = 100;
-            setSoundVolume(val);
-            persistSavedVolumePreset(val);
-            sendToActiveTab("changeSoundVolume");
+            applyVolumeFromControls(slider.value, true);
         });
         slider.addEventListener("change", function () {
-            var val = Math.max(0, Math.min(600, Number(slider.value)));
-            if (state.boostBlocked && val > 100) val = 100;
-            setSoundVolume(val);
-            persistSavedVolumePreset(val);
-            sendToActiveTab("changeSoundVolume");
+            applyVolumeFromControls(slider.value, true);
         });
 
         document.getElementById("btn-mute").onclick = function () {
-            if (slider) {
-                slider.value = 0;
-                slider.dispatchEvent(new Event("input", { bubbles: true }));
-            }
-        };
-        document.getElementById("btn-saved-preset").onclick = function () {
-            if (!slider) return;
-            var val = state.savedVolumePreset;
-            if (state.boostBlocked && val > 100) val = 100;
-            slider.value = val;
-            slider.dispatchEvent(new Event("input", { bubbles: true }));
+            applyVolumeFromControls(0, false);
         };
         document.getElementById("btn-100").onclick = function () {
-            if (slider) {
-                slider.value = 100;
-                slider.dispatchEvent(new Event("input", { bubbles: true }));
-            }
+            applyVolumeFromControls(100, false);
+        };
+        document.getElementById("btn-saved-preset").onclick = function () {
+            applyVolumeFromControls(state.savedVolumePreset, false);
         };
         document.getElementById("theme-toggle").onclick = function () {
             setDarkMode(!state.darkMode);
@@ -491,16 +483,15 @@
 
         document.addEventListener("keypress", function (e) {
             var n = parseInt(e.key, 10);
-            if (isNaN(n) || n < 0 || n > 6) return;
+            if (isNaN(n) || n < 0 || n > 9) return;
             var val;
             if (state.boostBlocked) {
                 val = n > 1 ? 100 : 100 * n;
             } else {
                 val = 100 * n;
             }
-            setSoundVolume(val);
-            persistSavedVolumePreset(val);
-            sendToActiveTab("changeSoundVolume");
+            var persistPreset = n >= 2;
+            applyVolumeFromControls(val, persistPreset);
         });
 
         loadPreferences(function () {

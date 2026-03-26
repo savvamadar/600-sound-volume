@@ -75,7 +75,7 @@ _browser().runtime.onMessage.addListener(function(request, sender, sendResponse)
             if (activeId === tabId) setBadgeText(getLatestVolumeForTab(tabId));
         });
         if (tabId != null && _browser().tabs && _browser().tabs.executeScript) {
-            var clamped = Math.max(0, Math.min(600, Number(vol)));
+            var clamped = Math.max(0, Math.min(1000, Number(vol)));
             var code = 'document.dispatchEvent(new CustomEvent("sv-volume-set",{detail:{volume:' + clamped + '}}))';
             _browser().tabs.executeScript(tabId, { code: code, allFrames: true }).catch(function(){});
         }
