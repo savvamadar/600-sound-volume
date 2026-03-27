@@ -78,7 +78,7 @@
 
     function updateSavedPresetButton() {
         var btn = document.getElementById("btn-saved-preset");
-        if (btn) btn.textContent = "🔄" + state.savedVolumePreset + "%";
+        if (btn) btn.textContent = "🔄 " + state.savedVolumePreset + "%";
     }
 
     function persistSavedVolumePreset(val) {
@@ -169,7 +169,11 @@
                 return;
             }
             if (action === "changeSoundVolume") {
-                setTabMutedState(tabs[0].id, state.soundVolume);
+                if (state.boostBlocked) {
+                    setTabMutedState(tabs[0].id, state.soundVolume);
+                } else {
+                    setTabMutedState(tabs[0].id, 1);
+                }
                 syncVolumeForTab(tabs[0].id, state.soundVolume);
             }
             var tabId = tabs[0].id;

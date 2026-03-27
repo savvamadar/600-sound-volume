@@ -96,30 +96,6 @@ function isCrossOriginNoCors(el) {
     return mediaOrigin && mediaOrigin !== pageOrigin && el.crossOrigin !== 'anonymous';
 }
 
-function getEffectiveVolume(el) {
-    var doc = (window.top && window.top.document) || document;
-    try {
-        var script = doc.createElement('script');
-        script.textContent = '(function(){try{var p=document.getElementById("movie_player");if(p&&typeof p.getVolume==="function"){var v=p.getVolume();document.documentElement.setAttribute("data-sv-yt-vol",typeof v==="number"&&v>=0?String(Math.min(100,v)):"");}else{document.documentElement.removeAttribute("data-sv-yt-vol");}}catch(e){document.documentElement.removeAttribute("data-sv-yt-vol");}})();';
-        (doc.head || doc.documentElement).appendChild(script);
-        script.remove();
-    } catch (e) {}
-    var ytVol = doc.documentElement.getAttribute('data-sv-yt-vol');
-    if (ytVol !== null && ytVol !== '') {
-        var v = parseFloat(ytVol) / 100;
-        if (Number.isFinite(v)) return Math.max(0, Math.min(1, v));
-    }
-    return el.muted ? 0 : el.volume;
-}
-
-function getPageVolumeFactor(el) {
-    var effectiveVolume = clampUnit(getEffectiveVolume(el));
-    var nativeVolume = el.muted ? 0 : clampUnit(el.volume);
-    if (effectiveVolume === 0 || el.muted) return 0;
-    if (nativeVolume <= 0) return 0;
-    return effectiveVolume / nativeVolume;
-}
-
 function applyDirectMultiplier(target) {
     ensureBaseState(target);
     var multiplier = getAddonMultiplier();
@@ -131,10 +107,16 @@ function applyDirectMultiplier(target) {
 
 function ensureAudioContext(target, src) {
     if (target.audiocontext && target.creategain && target.source) {
-        if (target.audiocontext.state === 'suspended') {
-            target.audiocontext.resume();
+        if (target.audiocontext.state === 'closed') {
+            target.audiocontext = null;
+            target.creategain = null;
+            target.source = null;
+        } else {
+            if (target.audiocontext.state === 'suspended') {
+                try { target.audiocontext.resume(); } catch (e) {}
+            }
+            return true;
         }
-        return true;
     }
 
     ensureBaseState(target);
@@ -185,7 +167,7 @@ function changeSoundVolume(doc) {
             continue;
         }
 
-        target.creategain.gain.value = getAddonMultiplier() * getPageVolumeFactor(target);
+        target.creategain.gain.value = getAddonMultiplier();
     }
 }
 

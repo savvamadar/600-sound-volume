@@ -12,7 +12,9 @@ function setBadgeText(soundVolume) {
     if (100 === soundVolume) {
         _browser().browserAction.setBadgeText({text: null});
     } else {
-        _browser().browserAction.setBadgeText({text: soundVolume.toString()});
+        var n = Math.max(0, Math.round(Number(soundVolume) || 0));
+        var text = n >= 1000 ? "1k" : n.toString();
+        _browser().browserAction.setBadgeText({text: text});
     }
 }
 
