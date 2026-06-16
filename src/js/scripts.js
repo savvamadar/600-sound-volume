@@ -37,6 +37,7 @@ function getAddonMultiplier() {
 
 function beginInternalMediaUpdate(el) {
     el.__svInternalUpdateCount = (el.__svInternalUpdateCount || 0) + 1;
+    el.__svInternalUpdateUntil = Date.now() + 750;
 }
 
 function endInternalMediaUpdate(el) {
@@ -46,7 +47,7 @@ function endInternalMediaUpdate(el) {
 }
 
 function isInternalMediaUpdate(el) {
-    return !!el.__svInternalUpdateCount;
+    return !!el.__svInternalUpdateCount || Date.now() < (el.__svInternalUpdateUntil || 0);
 }
 
 function rememberBaseState(el) {
@@ -163,7 +164,12 @@ function changeSoundVolume(doc) {
         }
 
         if (!ensureAudioContext(target, src)) {
-            applyDirectMultiplier(target);
+            if (getAddonMultiplier() <= 1) {
+                applyDirectMultiplier(target);
+            } else {
+                restoreBaseState(target);
+                if (target.creategain) target.creategain.gain.value = 1;
+            }
             continue;
         }
 

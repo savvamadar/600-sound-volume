@@ -13,7 +13,8 @@
             volumeLabel: "Volume:",
             tabsLabel: "Tabs playing audio right now",
             noTabsLabel: "No tabs playing audio right now",
-            boostBlockedLabel: "This page has cross-origin audio. Volume boost above 100% is not available. Use 0-100% to control volume.",
+            boostBlockedLabel: "Boost is limited on this page. Use 0-100% to control volume.",
+            boostBlockedHelp: "The streaming source for this audio is located at a different domain/origin than the page. Browsers block Web Audio boosting in that case, so boosting above 100% is not available.",
             if_you_like_message: "If you like the addon we'd appreciate a 5 star rating!",
             if_you_like_before: "If you like the addon we'd appreciate a ",
             if_you_like_link_text: "5 star rating",
@@ -30,7 +31,8 @@
             volumeLabel: "Громкость:",
             tabsLabel: "Вкладки со звуком",
             noTabsLabel: "Вкладок со звуком нет",
-            boostBlockedLabel: "Аудио на этой странице из другого источника. Усиление выше 100% недоступно. Используйте 0–100% для регулировки громкости.",
+            boostBlockedLabel: "На этой странице усиление ограничено. Используйте 0–100% для регулировки громкости.",
+            boostBlockedHelp: "Источник потокового аудио находится на другом домене/origin относительно этой страницы. В таком случае браузер блокирует усиление через Web Audio, поэтому усиление выше 100% недоступно.",
             if_you_like_message: "Если нравится расширение — будем благодарны за оценку в 5 звёзд!",
             if_you_like_before: "Если нравится расширение — будем благодарны за оценку в ",
             if_you_like_link_text: "5 звёзд",
@@ -53,6 +55,7 @@
         darkMode: false,
         audibleTabs: [],
         boostBlocked: false,
+        boostHelpOpen: false,
         refreshTimerId: null,
         tabActivatedListener: null,
         tabUpdatedListener: null,
@@ -354,9 +357,36 @@
         var el = document.getElementById("boost-msg");
         if (!el) return;
         if (state.boostBlocked) {
-            el.textContent = t("boostBlockedLabel");
+            el.textContent = "";
+            el.appendChild(document.createTextNode(t("boostBlockedLabel") + " "));
+            var help = document.createElement("span");
+            help.className = "volume-slider__boost-help";
+            help.tabIndex = 0;
+            help.title = t("boostBlockedHelp");
+            help.setAttribute("role", "button");
+            help.setAttribute("aria-label", t("boostBlockedHelp"));
+            help.setAttribute("aria-expanded", state.boostHelpOpen ? "true" : "false");
+            help.textContent = "?";
+            el.appendChild(help);
+            var details = document.createElement("div");
+            details.className = "volume-slider__boost-help-text";
+            details.textContent = t("boostBlockedHelp");
+            details.style.display = state.boostHelpOpen ? "block" : "none";
+            el.appendChild(details);
+            var toggleHelp = function () {
+                state.boostHelpOpen = !state.boostHelpOpen;
+                details.style.display = state.boostHelpOpen ? "block" : "none";
+                help.setAttribute("aria-expanded", state.boostHelpOpen ? "true" : "false");
+            };
+            help.onclick = toggleHelp;
+            help.onkeydown = function (e) {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                toggleHelp();
+            };
             el.style.display = "block";
         } else {
+            state.boostHelpOpen = false;
             el.style.display = "none";
         }
     }
