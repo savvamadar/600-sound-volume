@@ -90,14 +90,13 @@
         state.savedVolumePreset = n;
         updateSavedPresetButton();
         api.storage.local.set({ savedVolumePreset: n }, function () {
-            if (api.runtime.lastError) console.warn(api.runtime.lastError);
+            void api.runtime.lastError;
         });
     }
 
     function loadPreferences(done) {
         api.storage.local.get({ darkMode: false, savedVolumePreset: 100 }, function (data) {
             if (api.runtime.lastError) {
-                console.warn(api.runtime.lastError);
                 setDarkMode(false);
                 state.savedVolumePreset = 100;
                 updateSavedPresetButton();
@@ -114,7 +113,7 @@
 
     function persistDarkModePreference() {
         api.storage.local.set({ darkMode: state.darkMode }, function () {
-            if (api.runtime.lastError) console.warn(api.runtime.lastError);
+            void api.runtime.lastError;
         });
     }
 
@@ -139,80 +138,26 @@
         var n = Number(vol);
         if (Number.isFinite(n)) {
             api.tabs.update(tabId, { muted: n === 0 }, function () {
-                if (api.runtime.lastError) console.warn(api.runtime.lastError);
+                void api.runtime.lastError;
             });
         }
     }
 
-    function buildFallbackVolumeScript(vol) {
-        var multiplier = Math.max(0, Number(vol) / 100);
-        return "(function(){var multiplier=" + multiplier + ";function clamp01(value){var n=Number(value);if(!isFinite(n))return 1;return Math.max(0,Math.min(1,n));}function begin(el){el.__svInternalUpdateCount=(el.__svInternalUpdateCount||0)+1;}function end(el){setTimeout(function(){if(el.__svInternalUpdateCount>0)el.__svInternalUpdateCount--;},0);}function ensureBase(el){if(typeof el.__svBaseVolume!=='number'||!isFinite(el.__svBaseVolume))el.__svBaseVolume=clamp01(el.volume);if(typeof el.__svBaseMuted!=='boolean')el.__svBaseMuted=!!el.muted;}function applyNative(el,volume,muted){var nextVolume=clamp01(volume);var nextMuted=!!muted;begin(el);try{if(el.volume!==nextVolume)el.volume=nextVolume;if(el.muted!==nextMuted)el.muted=nextMuted;}catch(error){}end(el);}var media=document.querySelectorAll('video,audio');for(var i=0;i<media.length;i++){var target=media[i];if(!target)continue;try{ensureBase(target);if(multiplier<=1){applyNative(target,Math.min(1,target.__svBaseVolume*multiplier),target.__svBaseMuted||multiplier===0||target.__svBaseVolume===0);if(target.__svGain)target.__svGain.gain.value=1;}else{applyNative(target,target.__svBaseVolume,target.__svBaseMuted);if(!target.__svCtx){target.__svCtx=new (window.AudioContext||window.webkitAudioContext)();target.__svGain=target.__svCtx.createGain();target.__svSource=target.__svCtx.createMediaElementSource(target);target.__svSource.connect(target.__svGain);target.__svGain.connect(target.__svCtx.destination);}if(target.__svCtx.state==='suspended')target.__svCtx.resume();target.__svGain.gain.value=multiplier;}}catch(error){}}return {gain:multiplier,mediaCount:media.length};})();";
-    }
-
-    function applyFallbackVolumeForTab(tabId, vol) {
-        if (!api.tabs || !api.tabs.executeScript) {
-            setTabMutedState(tabId, vol);
-            return;
-        }
-        var code = buildFallbackVolumeScript(vol);
-        api.tabs.executeScript(tabId, { code: code }, function () {
-            if (api.runtime.lastError) console.warn(api.runtime.lastError);
-            setTabMutedState(tabId, vol);
-        });
-    }
-
     function sendToActiveTab(action) {
         api.tabs.query({ currentWindow: true, active: true }, function (tabs) {
-            var fallback = function () {
-                if (action !== "changeSoundVolume") return;
-                applyFallbackVolumeForTab(null, state.soundVolume);
-            };
             if (!tabs || !tabs.length || !tabs[0] || tabs[0].id === undefined) {
-                fallback();
                 return;
             }
-            if (action === "changeSoundVolume") {
-                if (state.boostBlocked) {
-                    setTabMutedState(tabs[0].id, state.soundVolume);
-                } else {
-                    setTabMutedState(tabs[0].id, 1);
-                }
-                syncVolumeForTab(tabs[0].id, state.soundVolume);
-            }
             var tabId = tabs[0].id;
-            var send = function (retry) {
-                api.tabs.sendMessage(tabId, { action: action, data: state }, function (resp) {
-                    var err = api.runtime.lastError;
-                    if (err) {
-                        if (!retry && /Receiving end does not exist/i.test(err.message || "") && api.tabs && api.tabs.executeScript) {
-                            api.tabs.executeScript(tabId, { file: "js/scripts.js" }, function () {
-                                if (api.runtime.lastError) {
-                                    console.warn(api.runtime.lastError);
-                                    fallback();
-                                    return;
-                                }
-                                send(true);
-                            });
-                            return;
-                        }
-                        console.warn(err);
-                        fallback();
-                        return;
-                    }
-                });
-            };
-            try {
-                send(false);
-            } catch (e) {
-                console.warn(e);
-                fallback();
-            }
+            if (action !== "changeSoundVolume") return;
+            setTabMutedState(tabId, state.soundVolume);
+            syncVolumeForTab(tabId, state.soundVolume);
         });
     }
 
     function syncVolumeForTab(tabId, vol) {
         api.runtime.sendMessage({ action: "setVolumeForTab", data: { tabId: tabId, soundVolume: Number(vol) } }, function () {
-            if (api.runtime.lastError) console.warn(api.runtime.lastError);
+            void api.runtime.lastError;
         });
     }
 
@@ -225,7 +170,6 @@
             var tabId = tabs[0].id;
             api.runtime.sendMessage({ action: "getVolumeForTab", data: { tabId: tabId } }, function (resp) {
                 if (api.runtime.lastError) {
-                    console.warn(api.runtime.lastError);
                     setSoundVolume(100);
                     return;
                 }
@@ -239,7 +183,6 @@
     function listAudible() {
         api.tabs.query({ audible: true, currentWindow: true }, function (tabs) {
             if (api.runtime.lastError) {
-                console.warn(api.runtime.lastError);
                 state.audibleTabs = [];
                 renderTabs();
                 return;
@@ -494,9 +437,6 @@
 
         var slider = document.getElementById("volume-slider");
         slider.addEventListener("input", function () {
-            applyVolumeFromControls(slider.value, true);
-        });
-        slider.addEventListener("change", function () {
             applyVolumeFromControls(slider.value, true);
         });
 

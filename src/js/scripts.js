@@ -1,10 +1,12 @@
-window.prevSoundVolume = null;
+(function initializeVolumeBooster() {
+if (window.__svContentControllerInstalled) return;
+window.__svContentControllerInstalled = true;
+
 window.localSoundVolume = 100;
-window._svUserHasSetVolume = false;
+window.__svObservedMediaElements = window.__svObservedMediaElements || [];
 
+const MAX_VOLUME_PERCENT = 1000;
 const HOSTS_TO_IGNORE = [];
-
-function debugLog() {}
 
 function _browser() {
     if (typeof browser !== 'undefined') {
@@ -30,7 +32,7 @@ function clampUnit(value) {
 
 function normalizeSoundVolume(value) {
     var n = Number(value);
-    return Number.isFinite(n) && n >= 0 ? n : 100;
+    return Number.isFinite(n) ? Math.max(0, Math.min(MAX_VOLUME_PERCENT, n)) : 100;
 }
 
 function getAddonMultiplier() {
@@ -54,22 +56,9 @@ function isInternalMediaUpdate(el) {
 
 function rememberBaseState(el) {
     if (!el) return;
-    if (isInternalMediaUpdate(el)) {
-        debugLog("ignored internal volumechange", {
-            volume: el.volume,
-            muted: el.muted,
-            internalCount: el.__svInternalUpdateCount || 0,
-            internalUntil: el.__svInternalUpdateUntil || 0
-        });
-        return;
-    }
+    if (isInternalMediaUpdate(el)) return;
     el.__svBaseVolume = clampUnit(el.volume);
     el.__svBaseMuted = !!el.muted;
-    debugLog("remembered base state", {
-        baseVolume: el.__svBaseVolume,
-        baseMuted: el.__svBaseMuted,
-        src: el.currentSrc || el.src || ""
-    });
 }
 
 function ensureBaseState(el) {
@@ -113,50 +102,11 @@ function isCrossOriginNoCors(el) {
     return mediaOrigin && mediaOrigin !== pageOrigin && el.crossOrigin !== 'anonymous';
 }
 
-function readYouTubePlayerVolume() {
-    try {
-        document.documentElement.removeAttribute('data-sv-yt-vol-debug');
-        var script = document.createElement('script');
-        script.textContent = '(function(){try{var p=document.getElementById("movie_player");if(p&&typeof p.getVolume==="function"){document.documentElement.setAttribute("data-sv-yt-vol-debug",String(p.getVolume()));}}catch(e){}})();';
-        (document.head || document.documentElement).appendChild(script);
-        script.remove();
-        var value = document.documentElement.getAttribute('data-sv-yt-vol-debug');
-        return value === null ? null : Number(value);
-    } catch (e) {
-        return null;
-    }
-}
-
-function getPageVolumeForGain(el) {
-    return getPageVolumeInfo(el).volume;
-}
-
-function getPageVolumeInfo(el) {
-    var ytVolume = readYouTubePlayerVolume();
-    if (Number.isFinite(ytVolume)) {
-        return {
-            source: "youtubePlayer",
-            volume: Math.max(0, Math.min(1, ytVolume / 100)),
-            rawValue: ytVolume
-        };
-    }
-    return {
-        source: el.muted ? "mediaElementMuted" : "mediaElementVolume",
-        volume: el.muted ? 0 : clampUnit(el.volume),
-        rawValue: el.muted ? 0 : el.volume
-    };
-}
-
 function refreshMediaKey(el, src) {
     var key = src || el.currentSrc || el.src || '';
     if (el.__svMediaKey === key) return;
-    debugLog("media source changed; resetting base state", {
-        previousKey: el.__svMediaKey || "",
-        nextKey: key
-    });
     el.__svMediaKey = key;
-    delete el.__svBaseVolume;
-    delete el.__svBaseMuted;
+    el.__svGraphFailedForKey = null;
 }
 
 function applyDirectMultiplier(target) {
@@ -164,43 +114,131 @@ function applyDirectMultiplier(target) {
     var multiplier = Math.min(1, getAddonMultiplier());
     var volume = Math.min(1, target.__svBaseVolume * multiplier);
     var muted = target.__svBaseMuted || multiplier === 0 || target.__svBaseVolume === 0;
-    debugLog("applying direct multiplier", {
-        requestedMultiplier: getAddonMultiplier(),
-        appliedMultiplier: multiplier,
-        baseVolume: target.__svBaseVolume,
-        baseMuted: target.__svBaseMuted,
-        nextVolume: volume,
-        nextMuted: muted,
-        src: target.currentSrc || target.src || ""
-    });
     applyNativeState(target, volume, muted);
-    if (target.creategain) target.creategain.gain.value = 1;
+    setGraphGain(target, 1);
 }
 
 function isActiveMedia(target) {
     return !target.paused && !target.ended && target.readyState > 0;
 }
 
+function isMediaAttached(target) {
+    if (!target || target.ownerDocument !== document) return false;
+    if (typeof target.isConnected === "boolean") return target.isConnected;
+    return !!(document.documentElement && document.documentElement.contains(target));
+}
+
+function getKnownMediaElements(doc) {
+    var known = [];
+    var domMedia = doc.querySelectorAll('video, audio');
+    for (var i = 0; i < domMedia.length; i++) {
+        if (known.indexOf(domMedia[i]) === -1) known.push(domMedia[i]);
+    }
+    for (var j = 0; j < window.__svObservedMediaElements.length; j++) {
+        var el = window.__svObservedMediaElements[j];
+        if (el && known.indexOf(el) === -1) known.push(el);
+    }
+    return known;
+}
+
+function pruneObservedMediaElements() {
+    window.__svObservedMediaElements = window.__svObservedMediaElements.filter(function(el) {
+        return isMediaAttached(el);
+    });
+}
+
+function setGraphGain(target, value) {
+    if (!target || !target.creategain || !target.creategain.gain) return;
+    var gain = Number(value);
+    if (!Number.isFinite(gain)) gain = 1;
+    target.creategain.gain.value = Math.max(0, Math.min(MAX_VOLUME_PERCENT / 100, gain));
+}
+
+function adoptLegacyFallbackGraph(target) {
+    if (target.audiocontext && target.creategain && target.source) return;
+    if (!target.__svCtx || !target.__svGain || !target.__svSource) return;
+    target.audiocontext = target.__svCtx;
+    target.creategain = target.__svGain;
+    target.source = target.__svSource;
+    target.__svGraphConnected = true;
+}
+
+function reconnectMediaGraph(target) {
+    if (!target.creategain || !target.audiocontext) return false;
+    if (target.__svGraphConnected === false) {
+        try {
+            target.creategain.connect(target.audiocontext.destination);
+            target.__svGraphConnected = true;
+        } catch (e) {
+            return false;
+        }
+    } else if (target.__svGraphConnected === undefined) {
+        // Graphs made by an earlier version were connected when they were created.
+        target.__svGraphConnected = true;
+    }
+    target.__svDetached = false;
+    return true;
+}
+
+function disconnectMediaGraph(target) {
+    if (!target) return;
+    adoptLegacyFallbackGraph(target);
+    target.__svDetached = true;
+    if (!target.creategain) return;
+    setGraphGain(target, 0);
+    if (target.__svGraphConnected !== false) {
+        try {
+            target.creategain.disconnect();
+        } catch (e) {}
+    }
+    target.__svGraphConnected = false;
+}
+
+function resumeAudioContext(target) {
+    if (!target.audiocontext || target.audiocontext.state !== "suspended") return;
+    try {
+        var resumeResult = target.audiocontext.resume();
+        if (resumeResult && typeof resumeResult.catch === "function") {
+            resumeResult.catch(function() {});
+        }
+    } catch (e) {}
+}
+
 function ensureAudioContext(target, src) {
+    adoptLegacyFallbackGraph(target);
     if (target.audiocontext && target.creategain && target.source) {
         if (target.audiocontext.state === 'closed') {
-            debugLog("audio context closed; clearing graph refs", {
-                src: target.currentSrc || target.src || ""
-            });
             target.audiocontext = null;
             target.creategain = null;
             target.source = null;
+            target.__svGraphConnected = false;
         } else {
-            if (target.audiocontext.state === 'suspended') {
-                debugLog("resuming suspended audio context", {
-                    src: target.currentSrc || target.src || ""
-                });
-                try { target.audiocontext.resume(); } catch (e) {
-                    debugLog("audio context resume failed", { error: String(e) });
-                }
-            }
+            if (!reconnectMediaGraph(target)) return false;
+            resumeAudioContext(target);
             return true;
         }
+    }
+
+    var mediaKey = src || target.currentSrc || target.src || "";
+    if (target.__svGraphFailedForKey === mediaKey) return false;
+
+    // Never leave a half-created graph published on the media element.
+    if (target.audiocontext || target.creategain || target.source) {
+        try {
+            if (target.creategain) target.creategain.disconnect();
+        } catch (e) {}
+        try {
+            if (target.audiocontext && target.audiocontext.state !== "closed") {
+                var closeResult = target.audiocontext.close();
+                if (closeResult && typeof closeResult.catch === "function") {
+                    closeResult.catch(function() {});
+                }
+            }
+        } catch (e) {}
+        target.audiocontext = null;
+        target.creategain = null;
+        target.source = null;
+        target.__svGraphConnected = false;
     }
 
     ensureBaseState(target);
@@ -218,58 +256,58 @@ function ensureAudioContext(target, src) {
         }
     }
 
+    var audioContext = null;
+    var gainNode = null;
+    var sourceNode = null;
     try {
-        debugLog("creating audio context graph", {
-            src: src || target.currentSrc || target.src || "",
-            baseVolume: target.__svBaseVolume,
-            baseMuted: target.__svBaseMuted
-        });
-        target.audiocontext = new (window.AudioContext || window.webkitAudioContext)();
-        target.creategain = target.audiocontext.createGain();
-        target.source = target.audiocontext.createMediaElementSource(target);
-        target.source.connect(target.creategain);
-        target.creategain.connect(target.audiocontext.destination);
-        if (target.audiocontext.state === 'suspended') {
-            target.audiocontext.resume();
-        }
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioContext.createGain();
+        sourceNode = audioContext.createMediaElementSource(target);
+        sourceNode.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        target.audiocontext = audioContext;
+        target.creategain = gainNode;
+        target.source = sourceNode;
+        target.__svGraphConnected = true;
+        target.__svDetached = false;
+        target.__svGraphFailedForKey = null;
+        resumeAudioContext(target);
         return true;
     } catch (e) {
-        debugLog("audio context graph failed", {
-            error: String(e),
-            src: src || target.currentSrc || target.src || ""
-        });
+        try {
+            if (gainNode) gainNode.disconnect();
+        } catch (disconnectError) {}
+        try {
+            if (audioContext && audioContext.state !== "closed") {
+                var failedCloseResult = audioContext.close();
+                if (failedCloseResult && typeof failedCloseResult.catch === "function") {
+                    failedCloseResult.catch(function() {});
+                }
+            }
+        } catch (closeError) {}
+        target.__svGraphFailedForKey = mediaKey;
         return false;
     }
 }
 
 function changeSoundVolume(doc) {
-    var media = doc.querySelectorAll('video, audio');
+    var media = getKnownMediaElements(doc);
     var multiplier = getAddonMultiplier();
-    debugLog("changeSoundVolume scan", {
-        multiplier: multiplier,
-        mediaCount: media.length,
-        activeCount: Array.prototype.filter.call(media, function (el) {
-            return isActiveMedia(el);
-        }).length
-    });
     for (var i = 0; i < media.length; i++) {
         var target = media[i];
+
+        if (!isMediaAttached(target)) {
+            disconnectMediaGraph(target);
+            continue;
+        }
+
         var src = target.src || target.currentSrc;
         if (!src || hostToIgnore(src)) continue;
         refreshMediaKey(target, src);
         ensureBaseState(target);
 
         if (!isActiveMedia(target)) {
-            if (target.creategain) {
-                debugLog("silencing inactive media graph", {
-                    multiplier: multiplier,
-                    paused: target.paused,
-                    ended: target.ended,
-                    readyState: target.readyState,
-                    src: target.currentSrc || target.src || ""
-                });
-                target.creategain.gain.value = 0;
-            }
+            setGraphGain(target, 0);
             continue;
         }
 
@@ -279,14 +317,6 @@ function changeSoundVolume(doc) {
         }
 
         if (multiplier <= 1 && !target.audiocontext) {
-            debugLog("using direct path without creating audio graph", {
-                multiplier: multiplier,
-                baseVolume: target.__svBaseVolume,
-                baseMuted: target.__svBaseMuted,
-                currentVolume: target.volume,
-                currentMuted: target.muted,
-                src: target.currentSrc || target.src || ""
-            });
             applyDirectMultiplier(target);
             continue;
         }
@@ -295,37 +325,15 @@ function changeSoundVolume(doc) {
             if (multiplier <= 1) {
                 applyDirectMultiplier(target);
             } else {
-                debugLog("boost graph unavailable; restoring base instead of direct boost", {
-                    multiplier: multiplier,
-                    src: target.currentSrc || target.src || ""
-                });
                 restoreBaseState(target);
-                if (target.creategain) target.creategain.gain.value = 1;
+                setGraphGain(target, 1);
             }
             continue;
         }
 
-        var pageVolumeInfo = getPageVolumeInfo(target);
-        var desiredGain = getAddonMultiplier() * pageVolumeInfo.volume;
-        debugLog("applying gain graph multiplier", {
-            multiplier: multiplier,
-            previousGain: target.creategain && target.creategain.gain ? target.creategain.gain.value : null,
-            desiredGain: desiredGain,
-            pageVolumeForGain: pageVolumeInfo.volume,
-            pageVolumeSource: pageVolumeInfo.source,
-            pageVolumeRawValue: pageVolumeInfo.rawValue,
-            baseVolume: target.__svBaseVolume,
-            baseMuted: target.__svBaseMuted,
-            currentVolume: target.volume,
-            currentMuted: target.muted,
-            youtubePlayerVolume: readYouTubePlayerVolume(),
-            paused: target.paused,
-            ended: target.ended,
-            readyState: target.readyState,
-            src: target.currentSrc || target.src || ""
-        });
-        target.creategain.gain.value = desiredGain;
+        setGraphGain(target, multiplier);
     }
+    pruneObservedMediaElements();
 }
 
 function getGraphGain(el) {
@@ -336,123 +344,56 @@ function getGraphGain(el) {
     }
 }
 
-function getAudioContextState(el) {
-    try {
-        return el.audiocontext ? el.audiocontext.state : null;
-    } catch (e) {
-        return null;
-    }
-}
-
-function getDesiredGraphGain(el) {
-    return getAddonMultiplier() * getPageVolumeForGain(el);
-}
-
-function getMediaDebugState(el, index) {
-    var src = el.currentSrc || el.src || "";
-    var pageVolumeInfo = getPageVolumeInfo(el);
-    return {
-        index: index,
-        active: isActiveMedia(el),
-        hasGraph: !!(el.audiocontext && el.creategain && el.source),
-        gain: getGraphGain(el),
-        desiredGain: getAddonMultiplier() * pageVolumeInfo.volume,
-        pageVolumeForGain: pageVolumeInfo.volume,
-        pageVolumeSource: pageVolumeInfo.source,
-        pageVolumeRawValue: pageVolumeInfo.rawValue,
-        youtubePlayerVolume: readYouTubePlayerVolume(),
-        audioContextState: getAudioContextState(el),
-        volume: el.volume,
-        muted: el.muted,
-        baseVolume: el.__svBaseVolume,
-        baseMuted: el.__svBaseMuted,
-        paused: el.paused,
-        ended: el.ended,
-        readyState: el.readyState,
-        currentTime: el.currentTime,
-        duration: el.duration,
-        src: src.length > 160 ? src.substring(0, 160) + "…" : src
-    };
-}
-
-function monitorMediaState() {
-    var media = document.querySelectorAll('video, audio');
+function reconcileMediaState() {
+    var media = getKnownMediaElements(document);
     var multiplier = getAddonMultiplier();
-    var states = [];
-    var activeCount = 0;
-    var graphCount = 0;
-    var activeGraphCount = 0;
-    var anomalies = [];
+    var needsApply = false;
 
     for (var i = 0; i < media.length; i++) {
         var el = media[i];
-        var src = el.currentSrc || el.src;
-        if (!src || hostToIgnore(src)) continue;
-        var active = isActiveMedia(el);
+        adoptLegacyFallbackGraph(el);
         var hasGraph = !!(el.audiocontext && el.creategain && el.source);
-        var gain = getGraphGain(el);
-        if (active) activeCount++;
-        if (hasGraph) graphCount++;
-        if (active && hasGraph) activeGraphCount++;
 
-        if (!active && hasGraph && gain !== 0) {
-            anomalies.push("inactive graph had non-zero gain");
-            debugLog("watchdog silencing inactive graph", getMediaDebugState(el, i));
-            el.creategain.gain.value = 0;
+        if (!isMediaAttached(el)) {
+            if (hasGraph) disconnectMediaGraph(el);
+            continue;
         }
 
-        var desiredGain = getDesiredGraphGain(el);
-        if (active && hasGraph && Math.abs((gain || 0) - desiredGain) > 0.001) {
-            anomalies.push("active graph gain mismatch");
-            debugLog("watchdog correcting active graph gain", {
-                state: getMediaDebugState(el, i),
-                expectedGain: desiredGain,
-                addonMultiplier: multiplier
-            });
-            el.creategain.gain.value = desiredGain;
+        var src = el.currentSrc || el.src;
+        if (!src || hostToIgnore(src)) {
+            if (hasGraph) setGraphGain(el, 0);
+            continue;
         }
 
-        if (active && multiplier > 1 && !hasGraph && !isCrossOriginNoCors(el)) {
-            anomalies.push("active boostable media missing graph");
-            debugLog("watchdog found active boostable media without graph", getMediaDebugState(el, i));
-            scheduleApply();
+        if (!isActiveMedia(el)) {
+            setGraphGain(el, 0);
+            continue;
         }
 
-        if (active && hasGraph && getAudioContextState(el) === 'suspended') {
-            anomalies.push("active graph context suspended");
-            debugLog("watchdog resuming suspended active graph", getMediaDebugState(el, i));
-            try { el.audiocontext.resume(); } catch (e) {
-                debugLog("watchdog resume failed", { error: String(e), state: getMediaDebugState(el, i) });
+        if (hasGraph && el.__svGraphConnected === false) {
+            needsApply = true;
+            continue;
+        }
+
+        if (hasGraph) {
+            if (Math.abs((getGraphGain(el) || 0) - multiplier) > 0.001) {
+                setGraphGain(el, multiplier);
             }
+            if (el.audiocontext.state === "suspended") resumeAudioContext(el);
+            continue;
         }
 
-        states.push(getMediaDebugState(el, i));
+        if (
+            multiplier > 1 &&
+            !isCrossOriginNoCors(el) &&
+            el.__svGraphFailedForKey !== src
+        ) {
+            needsApply = true;
+        }
     }
 
-    if (states.length > 0) {
-        debugLog("watchdog media state", {
-            multiplier: multiplier,
-            mediaCount: media.length,
-            trackedMediaCount: states.length,
-            activeCount: activeCount,
-            graphCount: graphCount,
-            activeGraphCount: activeGraphCount,
-            anomalies: anomalies,
-            pageHidden: document.hidden,
-            pageHasFocus: document.hasFocus(),
-            youtubePlayerVolume: readYouTubePlayerVolume(),
-            locationHref: location.href,
-            states: states
-        });
-    }
-
-    if (activeGraphCount > 1) {
-        debugLog("watchdog warning: multiple active gain graphs", {
-            multiplier: multiplier,
-            activeGraphCount: activeGraphCount,
-            states: states
-        });
-    }
+    if (needsApply) scheduleApply();
+    pruneObservedMediaElements();
 }
 
 var scheduleApplyTimer = null;
@@ -461,21 +402,14 @@ function scheduleApply() {
     if (scheduleApplyTimer) clearTimeout(scheduleApplyTimer);
     scheduleApplyTimer = setTimeout(function() {
         scheduleApplyTimer = null;
-        window.prevSoundVolume = window.localSoundVolume;
         changeSoundVolume(window.document);
     }, 150);
 }
 
 function applyVolume(vol) {
     window.localSoundVolume = normalizeSoundVolume(vol);
-    debugLog("applyVolume requested", {
-        requestedVolume: vol,
-        normalizedVolume: window.localSoundVolume,
-        multiplier: getAddonMultiplier()
-    });
     if (scheduleApplyTimer) clearTimeout(scheduleApplyTimer);
     scheduleApplyTimer = null;
-    window.prevSoundVolume = window.localSoundVolume;
     changeSoundVolume(window.document);
 }
 
@@ -493,7 +427,6 @@ function checkBoostAvailability() {
 
 _browser().runtime.onMessage.addListener(function(request, sender, sendResponse) {
     if (request.action === 'changeSoundVolume') {
-        window._svUserHasSetVolume = true;
         if (request.data && request.data.soundVolume !== undefined) {
             applyVolume(request.data.soundVolume);
         }
@@ -507,7 +440,6 @@ _browser().runtime.onMessage.addListener(function(request, sender, sendResponse)
 
 document.addEventListener('sv-volume-set', function(e) {
     if (e.detail && e.detail.volume !== undefined) {
-        window._svUserHasSetVolume = true;
         applyVolume(e.detail.volume);
     }
 });
@@ -520,19 +452,70 @@ function onPageVolumeChange(el) {
     scheduleApply();
 }
 
+function silenceInactiveMedia() {
+    if (!isActiveMedia(this)) setGraphGain(this, 0);
+}
+
+function observeMediaElement(el) {
+    if (window.__svObservedMediaElements.indexOf(el) === -1) {
+        window.__svObservedMediaElements.push(el);
+    }
+    if (el.__svObserved) {
+        if (!el.__svDetached) return false;
+        el.__svDetached = false;
+        return true;
+    }
+    el.__svObserved = true;
+    el.__svDetached = false;
+    rememberBaseState(el);
+    el.addEventListener('play', scheduleApply);
+    el.addEventListener('pause', silenceInactiveMedia);
+    el.addEventListener('ended', silenceInactiveMedia);
+    el.addEventListener('emptied', silenceInactiveMedia);
+    el.addEventListener('volumechange', function() { onPageVolumeChange(this); });
+    return true;
+}
+
 function observeMedia(doc) {
     var media = doc.querySelectorAll('video, audio');
-    var hadNew = false;
+    var changed = false;
     for (var i = 0; i < media.length; i++) {
-        var el = media[i];
-        if (el.__svObserved) continue;
-        el.__svObserved = true;
-        hadNew = true;
-        rememberBaseState(el);
-        el.addEventListener('play', scheduleApply);
-        el.addEventListener('volumechange', function() { onPageVolumeChange(this); });
+        if (observeMediaElement(media[i])) changed = true;
     }
-    return hadNew;
+    return changed;
+}
+
+function forEachMediaInNode(node, callback) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches && node.matches("video, audio")) callback(node);
+    if (!node.querySelectorAll) return;
+    var descendants = node.querySelectorAll("video, audio");
+    for (var i = 0; i < descendants.length; i++) callback(descendants[i]);
+}
+
+function disconnectRemovedMedia(records) {
+    for (var i = 0; i < records.length; i++) {
+        var removedNodes = records[i].removedNodes || [];
+        for (var j = 0; j < removedNodes.length; j++) {
+            forEachMediaInNode(removedNodes[j], function(el) {
+                // A node moved elsewhere in the same document is still safe to use.
+                if (!isMediaAttached(el)) disconnectMediaGraph(el);
+            });
+        }
+    }
+}
+
+function observeAddedMedia(records) {
+    var changed = false;
+    for (var i = 0; i < records.length; i++) {
+        var addedNodes = records[i].addedNodes || [];
+        for (var j = 0; j < addedNodes.length; j++) {
+            forEachMediaInNode(addedNodes[j], function(el) {
+                if (observeMediaElement(el)) changed = true;
+            });
+        }
+    }
+    return changed;
 }
 
 function loadSavedVolumeAndApply() {
@@ -545,11 +528,6 @@ function loadSavedVolumeAndApply() {
             if (resp && resp.soundVolume !== undefined) {
                 window.localSoundVolume = normalizeSoundVolume(resp.soundVolume);
             }
-        debugLog("loaded saved tab volume", {
-            response: resp || null,
-            localSoundVolume: window.localSoundVolume,
-            multiplier: getAddonMultiplier()
-        });
             scheduleApply();
         });
     } catch (e) {
@@ -557,25 +535,27 @@ function loadSavedVolumeAndApply() {
     }
 }
 
-function startMediaWatchdog() {
-    if (window.__svMediaWatchdogTimer) return;
-    window.__svMediaWatchdogTimer = setInterval(monitorMediaState, 500);
-    debugLog("started media watchdog", { intervalMs: 500 });
+function startMediaSafetyMonitor() {
+    if (window.__svMediaSafetyTimer) return;
+    window.__svMediaSafetyTimer = setInterval(reconcileMediaState, 1000);
 }
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function() {
         observeMedia(document);
         loadSavedVolumeAndApply();
-        startMediaWatchdog();
+        startMediaSafetyMonitor();
     });
 } else {
     observeMedia(document);
     loadSavedVolumeAndApply();
-    startMediaWatchdog();
+    startMediaSafetyMonitor();
 }
 
-var observer = new MutationObserver(function() {
-    if (observeMedia(document)) scheduleApply();
+var observer = new MutationObserver(function(records) {
+    disconnectRemovedMedia(records || []);
+    if (observeAddedMedia(records || [])) scheduleApply();
+    pruneObservedMediaElements();
 });
 observer.observe(document.documentElement, {childList: true, subtree: true});
+})();
