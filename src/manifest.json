@@ -1,6 +1,6 @@
 {
   "manifest_version": 2,
-  "version": "1.0.12",
+  "version": "1.0.13",
   "default_locale": "en",
   "name": "__MSG_app_name__",
   "short_name": "__MSG_app_short_name__",
@@ -45,33 +45,26 @@
   ],
   "content_security_policy": "script-src 'self'; object-src 'self'",
   "background": {
-    "persistent": true,
+    "persistent": false,
     "scripts": [
       "js/background.js"
     ]
   },
-  "web_accessible_resources": [
-    "*.*"
-  ],
   "permissions": [
     "<all_urls>",
     "tabs",
     "activeTab",
     "storage"
   ],
-  "commands": {
-    "_execute_browser_action": {
-      "suggested_key": {
-        "default": "Ctrl+Shift+6"
-      }
-    }
-  },
   "browser_specific_settings": {
     "gecko": {
       "id": "600-sound-volume@savvamadar",
       "data_collection_permissions": {
         "required": ["none"]
       }
+    },
+    "gecko_android": {
+      "strict_min_version": "142.0"
     }
   }
 }

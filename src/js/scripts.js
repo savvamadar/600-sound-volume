@@ -9,11 +9,8 @@ const MAX_VOLUME_PERCENT = 1000;
 const HOSTS_TO_IGNORE = [];
 
 function _browser() {
-    if (typeof browser !== 'undefined') {
-        return browser;
-    } else {
-        return chrome;
-    }
+    if (typeof chrome !== "undefined") return chrome;
+    return browser;
 }
 
 function hostToIgnore(url) {
@@ -485,6 +482,28 @@ function observeMedia(doc) {
     return changed;
 }
 
+function resumeBoostFromUserGesture() {
+    var media = getKnownMediaElements(document);
+    var needsGraph = false;
+    var multiplier = getAddonMultiplier();
+
+    for (var i = 0; i < media.length; i++) {
+        var el = media[i];
+        if (!isMediaAttached(el) || !isActiveMedia(el)) continue;
+        if (el.audiocontext && el.audiocontext.state === "suspended") {
+            resumeAudioContext(el);
+        } else if (
+            multiplier > 1 &&
+            !el.audiocontext &&
+            !isCrossOriginNoCors(el)
+        ) {
+            needsGraph = true;
+        }
+    }
+
+    if (needsGraph) changeSoundVolume(document);
+}
+
 function forEachMediaInNode(node, callback) {
     if (!node || node.nodeType !== 1) return;
     if (node.matches && node.matches("video, audio")) callback(node);
@@ -520,7 +539,7 @@ function observeAddedMedia(records) {
 
 function loadSavedVolumeAndApply() {
     try {
-        _browser().runtime.sendMessage({ action: 'getVolumeForTab' }, function(resp) {
+        _browser().runtime.sendMessage({ action: "getVolumeForTab" }, function(resp) {
             if (_browser().runtime.lastError) {
                 scheduleApply();
                 return;
@@ -551,6 +570,12 @@ if (document.readyState === 'loading') {
     loadSavedVolumeAndApply();
     startMediaSafetyMonitor();
 }
+
+document.addEventListener("pointerdown", resumeBoostFromUserGesture, true);
+document.addEventListener("touchstart", resumeBoostFromUserGesture, {
+    capture: true,
+    passive: true
+});
 
 var observer = new MutationObserver(function(records) {
     disconnectRemovedMedia(records || []);

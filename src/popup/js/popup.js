@@ -3,7 +3,9 @@
 
     var MAX_VOLUME_PERCENT = 1000;
 
-    var api = typeof browser !== "undefined" ? browser : chrome;
+    // This popup uses callback-style MV2 APIs. Firefox exposes the compatible
+    // chrome namespace as well, so prefer it when available.
+    var api = typeof chrome !== "undefined" ? chrome : browser;
     var locale = navigator.language && navigator.language.startsWith("ru") ? "ru" : "en";
 
     var messages = {
@@ -19,11 +21,7 @@
             if_you_like_before: "If you like the addon we'd appreciate a ",
             if_you_like_link_text: "5 star rating",
             if_you_like_after: "!",
-            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
-            ctrl_shift_v_title: "Tip: keyboard shortcut",
-            ctrl_shift_v_message: "Ctrl+Shift+6 is a shortcut to open \"600% Sound Volume\".",
-            right_after_opening_title: "Tip: use keys 0 - 9 to adjust volume",
-            right_after_opening_message: "Right after opening \"600% Sound Volume\" press keys 0 - 9 to set 0%, 100%, …, 900%."
+            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/"
         },
         ru: {
             headerTitle: "600% Громкость звука",
@@ -37,11 +35,7 @@
             if_you_like_before: "Если нравится расширение — будем благодарны за оценку в ",
             if_you_like_link_text: "5 звёзд",
             if_you_like_after: "!",
-            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/",
-            ctrl_shift_v_title: "Совет: Сочетание клавиш",
-            ctrl_shift_v_message: "Ctrl+Shift+6 - сочетание клавиш для открытия \"600% Громкость звука\".",
-            right_after_opening_title: "Совет: используйте клавиши 0 - 9 для регулировки громкости",
-            right_after_opening_message: "Сразу после открытия \"600% Громкость звука\" нажимайте клавиши 0 - 9 для 0%, 100%, …, 900%."
+            if_you_like_link_url: "https://addons.mozilla.org/en-US/firefox/addon/600-sound-volume-fixed/"
         }
     };
 
@@ -64,9 +58,7 @@
     };
 
     var notifications = [
-        { id: "v3za9vcy6rji3kx3t32wzjdqi7ztqmxw", priority: 1, title: "", message: "if_you_like_message", minUsages: 15 },
-        { id: "cvifms5exdmqy2g3ar4kzhmxi4zepvvq", priority: 750, title: "ctrl_shift_v_title", message: "ctrl_shift_v_message", minUsages: 3 },
-        { id: "h6s5u6eqgjpxwqasujret4vz2pnkj945", priority: 500, title: "right_after_opening_title", message: "right_after_opening_message", minUsages: 7 }
+        { id: "v3za9vcy6rji3kx3t32wzjdqi7ztqmxw", priority: 1, title: "", message: "if_you_like_message", minUsages: 15 }
     ];
 
     function setDarkMode(enabled) {
@@ -133,16 +125,6 @@
         sendToActiveTab("changeSoundVolume");
     }
 
-    function setTabMutedState(tabId, vol) {
-        if (!api.tabs || !api.tabs.update) return;
-        var n = Number(vol);
-        if (Number.isFinite(n)) {
-            api.tabs.update(tabId, { muted: n === 0 }, function () {
-                void api.runtime.lastError;
-            });
-        }
-    }
-
     function sendToActiveTab(action) {
         api.tabs.query({ currentWindow: true, active: true }, function (tabs) {
             if (!tabs || !tabs.length || !tabs[0] || tabs[0].id === undefined) {
@@ -150,13 +132,16 @@
             }
             var tabId = tabs[0].id;
             if (action !== "changeSoundVolume") return;
-            setTabMutedState(tabId, state.soundVolume);
-            syncVolumeForTab(tabId, state.soundVolume);
+            syncVolumeForTab(tabId, state.soundVolume, tabs[0].url);
         });
     }
 
-    function syncVolumeForTab(tabId, vol) {
-        api.runtime.sendMessage({ action: "setVolumeForTab", data: { tabId: tabId, soundVolume: Number(vol) } }, function () {
+    function syncVolumeForTab(tabId, vol, url) {
+        api.runtime.sendMessage({ action: "setVolumeForTab", data: {
+            tabId: tabId,
+            soundVolume: Number(vol),
+            url: url || ""
+        } }, function () {
             void api.runtime.lastError;
         });
     }
@@ -168,7 +153,10 @@
                 return;
             }
             var tabId = tabs[0].id;
-            api.runtime.sendMessage({ action: "getVolumeForTab", data: { tabId: tabId } }, function (resp) {
+            api.runtime.sendMessage({ action: "getVolumeForTab", data: {
+                tabId: tabId,
+                url: tabs[0].url || ""
+            } }, function (resp) {
                 if (api.runtime.lastError) {
                     setSoundVolume(100);
                     return;
@@ -214,7 +202,7 @@
         api.tabs.sendMessage(tabId, { action: "checkBoostAvailability" }, function (resp) {
             if (api.runtime.lastError) {
                 if (/Receiving end does not exist/i.test(api.runtime.lastError.message || "") && api.tabs && api.tabs.executeScript) {
-                    api.tabs.executeScript(tabId, { file: "js/scripts.js" }, function () {
+                    api.tabs.executeScript(tabId, { file: "/js/scripts.js", allFrames: true }, function () {
                         if (api.runtime.lastError) {
                             state.boostBlocked = false;
                             renderBoostMsg();

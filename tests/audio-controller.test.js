@@ -462,7 +462,7 @@ test("popup has no independent Web Audio fallback graph", () => {
 });
 
 test("release metadata is current and production sources contain no console logging", () => {
-    assert.equal(manifest.version, "1.0.12");
+    assert.equal(manifest.version, "1.0.13");
     for (const source of [contentScriptSource, backgroundScriptSource, popupScriptSource]) {
         assert.doesNotMatch(source, /console\./);
         assert.doesNotMatch(source, /debugLog/);

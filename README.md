@@ -9,6 +9,9 @@
 
 # Details
 
+Supports Firefox for desktop and Firefox for Android 142 or newer. On Android,
+open the extension from Firefox's **Add-ons** menu.
+
 ## Claims 
 
 The original author is 1fexd: [Original](https://github.com/1fexd/600-sound-volume/releases)
