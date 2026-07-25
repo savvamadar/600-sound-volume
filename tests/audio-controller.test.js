@@ -17,6 +17,10 @@ const popupScriptSource = fs.readFileSync(
     path.join(repositoryRoot, "src", "popup", "js", "popup.js"),
     "utf8"
 );
+const popupCssSource = fs.readFileSync(
+    path.join(repositoryRoot, "src", "popup", "popup.css"),
+    "utf8"
+);
 const manifest = JSON.parse(
     fs.readFileSync(path.join(repositoryRoot, "src", "manifest.json"), "utf8")
 );
@@ -461,8 +465,17 @@ test("popup has no independent Web Audio fallback graph", () => {
     assert.doesNotMatch(popupScriptSource, /__sv(?:Ctx|Gain|Source)/);
 });
 
+test("popup keeps an intrinsic width before Firefox sizes its viewport", () => {
+    assert.match(popupCssSource, /html\s*\{[^}]*min-width:\s*320px/s);
+    assert.match(
+        popupCssSource,
+        /body\s*\{[^}]*width:\s*320px[^}]*min-width:\s*320px/s
+    );
+    assert.doesNotMatch(popupCssSource, /(?:width|max-width):\s*100vw/);
+});
+
 test("release metadata is current and production sources contain no console logging", () => {
-    assert.equal(manifest.version, "1.0.13");
+    assert.equal(manifest.version, "1.0.14");
     for (const source of [contentScriptSource, backgroundScriptSource, popupScriptSource]) {
         assert.doesNotMatch(source, /console\./);
         assert.doesNotMatch(source, /debugLog/);
